@@ -7,7 +7,8 @@ import type {
 import type { LoginInput } from "./schemas";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api";
+  process.env.NEXT_PUBLIC_API_URL ??
+  (process.env.NODE_ENV === "development" ? "http://localhost:3000/api" : "");
 
 const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
 
@@ -15,9 +16,21 @@ async function request<T>(
   path: string,
   init?: RequestInit & { token?: string | null },
 ) {
-  const headers = new Headers(init?.headers);
+  if (!API_URL) {
+    throw new Error(
+      "NEXT_PUBLIC_API_URL nao foi configurada para este ambiente.",
+    );
+  }
 
-  if (!headers.has("Content-Type") && !(init?.body instanceof FormData)) {
+  const headers = new Headers(init?.headers);
+  const method = init?.method?.toUpperCase() ?? "GET";
+
+  if (
+    init?.body &&
+    method !== "GET" &&
+    !headers.has("Content-Type") &&
+    !(init.body instanceof FormData)
+  ) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -50,6 +63,12 @@ export function resolveAssetUrl(path?: string | null) {
 
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
+  }
+
+  if (!API_ORIGIN) {
+    throw new Error(
+      "NEXT_PUBLIC_API_URL nao foi configurada para resolver arquivos remotos.",
+    );
   }
 
   return `${API_ORIGIN}${path}`;
